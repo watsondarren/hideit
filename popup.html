@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hide HTML Elements</title>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    body {
+      width: 350px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .input-container {
+      position: relative;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .autocomplete-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-top: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: none;
+    }
+    .autocomplete-dropdown.visible {
+      display: block;
+    }
+    .autocomplete-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .autocomplete-item:hover {
+      background-color: #f5f5f5;
+    }
+    .autocomplete-item .element-count {
+      color: #666;
+      font-size: 12px;
+    }
+    .autocomplete-item .element-preview {
+      color: #999;
+      font-size: 12px;
+      margin-left: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 150px;
+    }
+    button {
+      padding: 8px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .recent-list {
+      margin-top: 15px;
+      border-top: 1px solid #eee;
+      padding-top: 10px;
+    }
+    .website-group {
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .website-header {
+      background-color: #f5f5f5;
+      padding: 8px 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+    .website-header:hover {
+      background-color: #eee;
+    }
+    .website-header h3 {
+      margin: 0;
+      font-size: 14px;
+      color: #333;
+    }
+    .website-content {
+      padding: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .website-content.expanded {
+      max-height: 500px;
+      padding: 8px;
+    }
+    .recent-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+    .recent-item:last-child {
+      margin-bottom: 0;
+    }
+    .button-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .recent-item button {
+      padding: 4px 8px;
+      font-size: 12px;
+      min-width: 60px;
+    }
+    .recent-item .undo-button {
+      background-color: #f44336;
+    }
+    .recent-item .undo-button:hover {
+      background-color: #d32f2f;
+    }
+    .recent-item .toggle-button {
+      background-color: #2196F3;
+    }
+    .recent-item .toggle-button:hover {
+      background-color: #1976D2;
+    }
+    .recent-item .toggle-button.hidden {
+      background-color: #757575;
+    }
+    .recent-item .toggle-button.hidden:hover {
+      background-color: #616161;
+    }
+    .no-recent {
+      color: #666;
+      font-style: italic;
+      text-align: center;
+      padding: 10px;
+    }
+    .toggle-icon {
+      transition: transform 0.3s ease;
+      font-size: 20px;
+      color: #666;
+    }
+    .toggle-icon.expanded {
+      transform: rotate(180deg);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Hide HTML Elements</h2>
+    <div class="input-container">
+      <input type="text" id="selector" placeholder="Enter CSS selector (e.g., .ad, #banner)" autocomplete="off">
+      <div id="autocompleteDropdown" class="autocomplete-dropdown"></div>
+    </div>
+    <button id="hideButton">Hide Elements</button>
+    
+    <div class="recent-list">
+      <h3>Recently Hidden</h3>
+      <div id="recentElements">
+        <div class="no-recent">No elements hidden yet</div>
+      </div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html> 

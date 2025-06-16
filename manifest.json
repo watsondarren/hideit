@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Hide It",
+  "version": "1.0",
+  "description": "Hide elements on a webpage based on CSS selectors",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "48": "hide-it-48.png",
+    "128": "hide-it-128.png"
+  }
+} 
