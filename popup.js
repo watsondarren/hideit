@@ -4,10 +4,11 @@ let currentPageElements = [];
 let autocompleteTimeout = null;
 
 document.addEventListener('DOMContentLoaded', function() {
-  const hideButton = document.getElementById('hideButton');
   const selectorInput = document.getElementById('selector');
   const recentElementsContainer = document.getElementById('recentElements');
   const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+  const autoHideToggle = document.getElementById('autoHideToggle');
+  const hideButton = document.getElementById('hideButton');
 
   // Load recent elements from storage
   chrome.storage.local.get(['hiddenElementsByWebsite'], function(result) {
@@ -16,6 +17,22 @@ document.addEventListener('DOMContentLoaded', function() {
       updateRecentElementsList();
     }
   });
+
+  // Load auto-hide preference
+  chrome.storage.local.get(['autoHideEnabled'], function(result) {
+    autoHideToggle.checked = result.autoHideEnabled || false;
+    updateExtensionIcon(result.autoHideEnabled || false);
+  });
+
+  // Save auto-hide preference when changed
+  autoHideToggle.addEventListener('change', function() {
+    const isEnabled = this.checked;
+    chrome.storage.local.set({ autoHideEnabled: isEnabled });
+    updateExtensionIcon(isEnabled);
+  });
+
+  // Add event listener for hide button
+  hideButton.addEventListener('click', hideElementsFromInput);
 
   // Load current page elements
   loadCurrentPageElements();
@@ -83,6 +100,10 @@ document.addEventListener('DOMContentLoaded', function() {
           event.preventDefault();
           selectorInput.value = selectedItem.dataset.selector;
           autocompleteDropdown.classList.remove('visible');
+        } else {
+          // If no autocomplete item is selected, hide elements with the entered selector
+          event.preventDefault();
+          hideElementsFromInput();
         }
         break;
       case 'Escape':
@@ -97,10 +118,14 @@ document.addEventListener('DOMContentLoaded', function() {
       const website = event.target.dataset.website;
       const index = parseInt(event.target.dataset.index);
       await undoHide(website, index);
-    } else if (event.target.classList.contains('toggle-button')) {
+    } else if (event.target.classList.contains('show-button')) {
       const website = event.target.dataset.website;
       const index = parseInt(event.target.dataset.index);
-      await toggleElement(website, index);
+      await showElement(website, index);
+    } else if (event.target.classList.contains('hide-button')) {
+      const website = event.target.dataset.website;
+      const index = parseInt(event.target.dataset.index);
+      await hideElement(website, index);
     } else if (event.target.closest('.website-header')) {
       const header = event.target.closest('.website-header');
       const content = header.nextElementSibling;
@@ -116,58 +141,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const item = event.target.closest('.autocomplete-item');
     if (item) {
       selectorInput.value = item.dataset.selector;
-      autocompleteDropdown.classList.remove('visible');
-    }
-  });
-
-  hideButton.addEventListener('click', async () => {
-    const selector = selectorInput.value.trim();
-    
-    if (!selector) {
-      alert('Please enter a CSS selector');
-      return;
-    }
-
-    // Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const url = new URL(tab.url);
-    const website = url.hostname;
-
-    // Execute the script to hide elements
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      function: hideElements,
-      args: [selector]
-    });
-
-    const count = results[0].result;
-    if (count > 0) {
-      // Initialize website array if it doesn't exist
-      if (!hiddenElementsByWebsite[website]) {
-        hiddenElementsByWebsite[website] = [];
-      }
-
-      // Add to recent elements
-      hiddenElementsByWebsite[website].unshift({
-        selector: selector,
-        timestamp: Date.now(),
-        count: count,
-        url: tab.url
-      });
-
-      // Keep only the last 10 items per website
-      if (hiddenElementsByWebsite[website].length > 10) {
-        hiddenElementsByWebsite[website].pop();
-      }
-
-      // Save to storage
-      chrome.storage.local.set({ hiddenElementsByWebsite: hiddenElementsByWebsite });
-
-      // Update the list
-      updateRecentElementsList();
-      
-      // Clear the input
-      selectorInput.value = '';
       autocompleteDropdown.classList.remove('visible');
     }
   });
@@ -325,10 +298,15 @@ function updateRecentElementsList() {
           <div class="recent-item">
             <span>${item.selector} (${item.count} elements)</span>
             <div class="button-group">
-              <button class="toggle-button ${item.isHidden ? 'hidden' : ''}" 
+              <button class="show-button" 
                       data-website="${website}" 
                       data-index="${index}">
-                ${item.isHidden ? 'Show' : 'Hide'}
+                Show
+              </button>
+              <button class="hide-button" 
+                      data-website="${website}" 
+                      data-index="${index}">
+                Hide
               </button>
               <button class="undo-button" 
                       data-website="${website}" 
@@ -343,23 +321,21 @@ function updateRecentElementsList() {
   `).join('');
 }
 
-async function toggleElement(website, index) {
+async function showElement(website, index) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const currentWebsite = new URL(tab.url).hostname;
   const item = hiddenElementsByWebsite[website][index];
 
-  // Only allow toggling if we're on the same website
+  // Only allow showing if we're on the same website
   if (currentWebsite === website) {
-    const newState = !item.isHidden;
-    
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      function: newState ? hideElements : showElements,
+      function: showElements,
       args: [item.selector]
     });
 
     // Update the state
-    item.isHidden = newState;
+    item.isHidden = false;
     
     // Save to storage
     chrome.storage.local.set({ hiddenElementsByWebsite: hiddenElementsByWebsite });
@@ -367,7 +343,33 @@ async function toggleElement(website, index) {
     // Update the list
     updateRecentElementsList();
   } else {
-    alert('You can only toggle elements while on the same website');
+    alert('You can only show elements while on the same website');
+  }
+}
+
+async function hideElement(website, index) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const currentWebsite = new URL(tab.url).hostname;
+  const item = hiddenElementsByWebsite[website][index];
+
+  // Only allow hiding if we're on the same website
+  if (currentWebsite === website) {
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      function: hideElements,
+      args: [item.selector]
+    });
+
+    // Update the state
+    item.isHidden = true;
+    
+    // Save to storage
+    chrome.storage.local.set({ hiddenElementsByWebsite: hiddenElementsByWebsite });
+
+    // Update the list
+    updateRecentElementsList();
+  } else {
+    alert('You can only hide elements while on the same website');
   }
 }
 
@@ -421,4 +423,75 @@ function showElements(selector) {
   elements.forEach(element => {
     element.style.display = '';
   });
+}
+
+async function hideElementsFromInput() {
+  const selectorInput = document.getElementById('selector');
+  const selector = selectorInput.value.trim();
+  
+  if (!selector) {
+    alert('Please enter a CSS selector');
+    return;
+  }
+
+  // Get the active tab
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const url = new URL(tab.url);
+  const website = url.hostname;
+
+  // Execute the script to hide elements
+  const results = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    function: hideElements,
+    args: [selector]
+  });
+
+  const count = results[0].result;
+  if (count > 0) {
+    // Initialize website array if it doesn't exist
+    if (!hiddenElementsByWebsite[website]) {
+      hiddenElementsByWebsite[website] = [];
+    }
+
+    // Add to recent elements
+    hiddenElementsByWebsite[website].unshift({
+      selector: selector,
+      timestamp: Date.now(),
+      count: count,
+      url: tab.url,
+      isHidden: true
+    });
+
+    // Keep only the last 10 items per website
+    if (hiddenElementsByWebsite[website].length > 10) {
+      hiddenElementsByWebsite[website].pop();
+    }
+
+    // Save to storage
+    chrome.storage.local.set({ hiddenElementsByWebsite: hiddenElementsByWebsite });
+
+    // Update the list
+    updateRecentElementsList();
+    
+    // Clear the input
+    selectorInput.value = '';
+    const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+    autocompleteDropdown.classList.remove('visible');
+  }
+}
+
+function updateExtensionIcon(isEnabled) {
+  const iconPath = isEnabled 
+    ? {
+        16: 'icons/icon-enabled-48.png',
+        48: 'icons/icon-enabled-48.png',
+        128: 'icons/icon-enabled-128.png'
+      }
+    : {
+        16: 'icons/icon-disabled-48.png',
+        48: 'icons/icon-disabled-48.png',
+        128: 'icons/icon-disabled-128.png'
+      };
+  
+  chrome.action.setIcon({ path: iconPath });
 } 

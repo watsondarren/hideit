@@ -4,11 +4,19 @@
   "version": "1.0",
   "description": "Hide elements on a webpage based on CSS selectors",
   "permissions": ["activeTab", "scripting", "storage"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
   "action": {
     "default_popup": "popup.html"
   },
   "icons": {
-    "48": "hide-it-48.png",
-    "128": "hide-it-128.png"
+    "16": "icons/icon-enabled-48.png",
+    "48": "icons/icon-enabled-48.png",
+    "128": "icons/icon-enabled-128.png"
   }
 } 
